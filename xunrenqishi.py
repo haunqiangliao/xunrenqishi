@@ -9,13 +9,9 @@ st.set_page_config(
     layout="centered"
 )
 
-# 初始化数据（简化版使用session_state）
+# 初始化数据（改用字典列表存储）
 if 'posts' not in st.session_state:
-    st.session_state.posts = pd.DataFrame(columns=[
-        "姓名", "性别", "年龄", "特征描述", 
-        "失踪时间", "失踪地点", "联系人", 
-        "联系方式", "发布时间", "图片"
-    ])
+    st.session_state.posts = []
 
 # 主界面
 st.title("🔍 寻人启事互助平台")
@@ -64,9 +60,9 @@ with tab1:
                     "联系人": contact_person,
                     "联系方式": contact_info,
                     "发布时间": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "图片": image.getvalue() if image else None
+                    "图片": image  # 直接保存文件对象，不调用getvalue()
                 }
-                st.session_state.posts = st.session_state.posts.append(new_post, ignore_index=True)
+                st.session_state.posts.append(new_post)
                 st.success("信息发布成功！")
             else:
                 st.error("请填写带*的必填项")
@@ -83,26 +79,26 @@ with tab2:
         search_location = st.text_input("按地点搜索")
     
     # 显示信息卡片
-    filtered_posts = st.session_state.posts
-    if search_name:
-        filtered_posts = filtered_posts[filtered_posts["姓名"].str.contains(search_name, na=False)]
-    if search_location:
-        filtered_posts = filtered_posts[filtered_posts["失踪地点"].str.contains(search_location, na=False)]
+    filtered_posts = [
+        p for p in st.session_state.posts
+        if (not search_name or search_name in p["姓名"]) and 
+           (not search_location or search_location in p["失踪地点"])
+    ]
     
-    if not filtered_posts.empty:
-        for idx, row in filtered_posts.iterrows():
-            with st.expander(f"{row['姓名']} ({row['性别']}, {row['年龄']}岁) - 失踪于{row['失踪时间']}"):
+    if filtered_posts:
+        for post in filtered_posts:
+            with st.expander(f"{post['姓名']} ({post['性别']}, {post.get('年龄', '')}岁) - 失踪于{post['失踪时间']}"):
                 col1, col2 = st.columns([1, 2])
                 with col1:
-                    if row["图片"]:
-                        st.image(row["图片"], width=150)
+                    if post["图片"]:
+                        st.image(post["图片"], width=150)
                     else:
                         st.info("暂无照片")
                 with col2:
-                    st.write(f"**失踪地点**: {row['失踪地点']}")
-                    st.write(f"**特征描述**: {row['特征描述']}")
-                    st.write(f"**联系人**: {row['联系人']} ({row['联系方式']})")
-                    st.caption(f"发布时间: {row['发布时间']}")
+                    st.write(f"**失踪地点**: {post['失踪地点']}")
+                    st.write(f"**特征描述**: {post['特征描述']}")
+                    st.write(f"**联系人**: {post['联系人']} ({post['联系方式']})")
+                    st.caption(f"发布时间: {post['发布时间']}")
     else:
         st.info("暂无匹配的寻人信息")
 
